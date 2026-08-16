@@ -3,14 +3,16 @@
 # 目标：完整复刻 DSH 客户端 v1.1.7 的功能（同步引擎/插件全家桶/
 #       状态监控/双端 UI），以 Web 服务形态运行
 # ============================================================
-FROM node:22-alpine AS base
-
-# ---- 换 alpine 国内源（清华镜像，加速 apk 下载）----
-RUN sed -i 's|dl-cdn.alpinelinux.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apk/repositories
+# 用 Debian slim（glibc）：node-addon-require-builtin 等原生模块
+# 只有 gnu 预编译绑定，alpine(musl) 无法加载
+FROM node:22-slim AS base
 
 # ---- 基础工具（git 供同步引擎与插件安装、bash 供脚本）----
-# node-pty 等原生模块需要编译工具链
-RUN apk add --no-cache git bash curl tar openssh-client python3 make g++ linux-headers
+# node-pty 等原生模块需要编译工具链；apt 走清华源加速
+RUN sed -i 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g; s|security.debian.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list.d/debian.sources 2>/dev/null; \
+    apt-get update && apt-get install -y --no-install-recommends \
+    git bash curl ca-certificates openssh-client python3 make g++ && \
+    rm -rf /var/lib/apt/lists/*
 
 # ---- npm 国内镜像加速 + 全局安装 dsh 核心 ----
 # node-gyp 头文件走 npmmirror 镜像（nodejs.org 国内不通导致编译失败）

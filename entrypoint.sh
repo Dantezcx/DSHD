@@ -50,6 +50,24 @@ else
   log "数据目录已存在，跳过初始化"
 fi
 
+# 关键：把 profile 插件符号链接到 dsh 全局 node_modules，
+# 使 cordis loader 能解析 @linxin666/* 等 bundle（与客户端本机机制一致）
+log "建立插件符号链接..."
+GLOBAL_NM="/usr/local/lib/node_modules/@deepseek-ai/dsh/node_modules"
+PROFILE_NM="$DSH_HOME/profiles/web/node_modules"
+if [ -d "$PROFILE_NM/@linxin666" ]; then
+  mkdir -p "$GLOBAL_NM/@linxin666"
+  for pkg in "$PROFILE_NM"/@linxin666/*; do
+    [ -e "$pkg" ] && ln -sfn "$pkg" "$GLOBAL_NM/@linxin666/$(basename "$pkg")"
+  done
+  for pkg in dsh-chat-import dsh-plugin-marketplace; do
+    if [ -d "$PROFILE_NM/$pkg" ]; then
+      ln -sfn "$PROFILE_NM/$pkg" "$GLOBAL_NM/$pkg"
+    fi
+  done
+  log "✅ 插件符号链接完成"
+fi
+
 # 确保权限
 chmod -R u+rw "$DSH_HOME" 2>/dev/null || true
 
