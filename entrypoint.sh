@@ -82,7 +82,7 @@ log "dsh web PID=$DSH_PID（日志: /data/dsh-web.log）"
 log "等待主服务就绪..."
 READY=0
 for i in $(seq 1 60); do
-  if (echo > /dev/tcp/127.0.0.1/$DSH_WEB_PORT) 2>/dev/null; then
+  if curl -s -m 2 -o /dev/null "http://127.0.0.1:$DSH_WEB_PORT/"; then
     READY=1
     break
   fi

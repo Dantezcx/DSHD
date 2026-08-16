@@ -32,6 +32,10 @@ services:
     volumes:
       # 数据持久化：会话/配置/插件/同步数据
       - dsh-data:/data
+      # 代码挂载（改动即时生效，无需重建镜像）
+      - ./entrypoint.sh:/app/entrypoint.sh:ro
+      - ./server:/app/server:ro
+      - ./web:/app/web:ro
       # API 密钥（首次运行放入 .credentials.yaml 后挂载）
       # - ./credentials.yaml:/data/.dsh/.credentials.yaml:ro
     ports:
@@ -40,7 +44,7 @@ services:
       # 主服务：仅本机回环，由宿主机 nginx 反代到 58123
       - "127.0.0.1:8123:8123"
     healthcheck:
-      test: ["CMD", "sh", "-c", "(echo > /dev/tcp/127.0.0.1/8123) 2>/dev/null && (echo > /dev/tcp/127.0.0.1/8124) 2>/dev/null"]
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:8123/", "-o", "/dev/null"]
       interval: 30s
       timeout: 5s
       retries: 5
