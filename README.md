@@ -8,9 +8,22 @@
 ### 核心服务
 | 服务 | 端口 | 说明 |
 |---|---|---|
-| DSH 主界面 | 8123 | 原版 Web GUI（blue-fantasy 皮肤，浏览器直接使用） |
-| 管理服务 | 8124 | 桌面管理页 `/` + 移动端 UI `/m` |
-| HTTPS 反代 | 58123 | 宿主机 nginx，公网 `https://game.dantezcx.vip:58123` |
+| DSH 主界面 | 58123 | HTTPS 公网访问（nginx 反代 → 容器 8123） |
+| 管理服务 | 58124 | HTTPS 桌面管理页 + 移动端 UI（nginx 反代 → 容器 8124） |
+
+### 公网访问地址
+```
+https://game.dantezcx.vip:58123   # DSH 主界面（Agent 对话）
+https://game.dantezcx.vip:58124   # 桌面管理页（同步/备份/插件/规则）
+https://game.dantezcx.vip:58124/m # 移动端 UI
+```
+
+### ⚠️ nginx 反代关键配置（403 问题）
+DSH 的 `/api` 有浏览器信任检查（browser-trust fence）：
+- `settings.describe` 等**特权 API 只允许 loopback**（Host=127.0.0.1）
+- 所有 `/api` 要求 **Origin.host === Host.host**
+- **因此反代必须把 Host 和 Origin 都伪装为 `127.0.0.1:8123`**，否则浏览器经域名访问全部 403
+- 完整配置见 `nginx/nginx.conf`（含 58123 + 58124 两个 server 块）
 
 ### 保留的客户端独有能力
 - 🔄 **同步引擎**：Git 同步 / WebDAV 双向同步 / 云端恢复 / 自动定时同步
