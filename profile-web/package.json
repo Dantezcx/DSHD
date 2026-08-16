@@ -1,0 +1,21 @@
+{
+  "name": "dsh-profile-web",
+  "private": true,
+  "dependencies": {
+    "@linxin666/dsh-client-ui-skin-blue-fantasy": "0.1.12",
+    "@linxin666/dsh-live-stats": "0.1.12",
+    "@linxin666/dsh-web-ui-all": "0.1.12",
+    "dsh-chat-import": "^0.2.0",
+    "dsh-plugin-marketplace": "^0.2.2"
+  },
+  "dsh": {
+    "profile": {
+      "bundles": [
+        "@deepseek-ai/dsh-base",
+        "@deepseek-ai/dsh-web-app",
+        "@linxin666/dsh-web-ui-all",
+        "dsh-chat-import"
+      ]
+    }
+  }
+}

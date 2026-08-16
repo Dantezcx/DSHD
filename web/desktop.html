@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DSH 客户端 - 管理中心</title>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --border: #21262d;
+    --text: #e6edf3; --text2: #8b949e; --text3: #6e7681;
+    --accent: #2f81f7; --ok: #3fb950; --bad: #f85149; --warn: #d29922;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 14px "Segoe UI", "Microsoft YaHei", sans-serif;
+  }
+  .sidebar {
+    position: fixed; left: 0; top: 0; bottom: 0; width: 200px;
+    background: var(--panel); border-right: 1px solid var(--border);
+    padding: 16px 0; overflow-y: auto;
+  }
+  .logo { padding: 8px 20px 20px; font-size: 17px; font-weight: 700; letter-spacing: 1px; }
+  .logo span { color: var(--accent); }
+  .nav-item {
+    display: block; padding: 10px 20px; color: var(--text2);
+    cursor: pointer; text-decoration: none; border-left: 3px solid transparent;
+    transition: all .15s;
+  }
+  .nav-item:hover { color: var(--text); background: rgba(47,129,247,.08); }
+  .nav-item.active { color: var(--text); border-left-color: var(--accent); background: rgba(47,129,247,.12); }
+  .main { margin-left: 200px; padding: 24px 32px; max-width: 1100px; }
+  .page { display: none; }
+  .page.active { display: block; }
+  h2 { font-size: 20px; margin-bottom: 6px; }
+  .sub { color: var(--text2); font-size: 13px; margin-bottom: 20px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 18px 20px; margin-bottom: 16px;
+  }
+  .card h3 { font-size: 14px; margin-bottom: 12px; color: var(--text); }
+  .row { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
+  label { color: var(--text2); font-size: 13px; min-width: 90px; }
+  input, select, textarea {
+    background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; padding: 8px 10px; font-size: 13px; flex: 1; min-width: 200px;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--accent); }
+  button {
+    background: #21262d; color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px 16px; font-size: 13px; cursor: pointer;
+    transition: all .15s;
+  }
+  button:hover { background: #30363d; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary:hover { background: #388bfd; }
+  button.danger { background: transparent; border-color: var(--bad); color: var(--bad); }
+  button.danger:hover { background: rgba(248,81,73,.12); }
+  .status-line { font-size: 13px; color: var(--text2); margin-bottom: 8px; }
+  .status-line b { color: var(--text); font-variant-numeric: tabular-nums; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+  .dot.ok { background: var(--ok); } .dot.bad { background: var(--bad); } .dot.warn { background: var(--warn); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+  .stat { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+  .stat .k { color: var(--text3); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+  .stat .v { font-size: 20px; font-weight: 600; margin-top: 6px; font-variant-numeric: tabular-nums; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); }
+  th { color: var(--text3); font-weight: 500; font-size: 12px; }
+  tr:hover td { background: rgba(47,129,247,.05); }
+  .msg { padding: 10px 14px; border-radius: 6px; font-size: 13px; margin-top: 10px; display: none; }
+  .msg.show { display: block; }
+  .msg.ok { background: rgba(63,185,80,.12); color: var(--ok); border: 1px solid rgba(63,185,80,.3); }
+  .msg.bad { background: rgba(248,81,73,.12); color: var(--bad); border: 1px solid rgba(248,81,73,.3); }
+  .msg.warn { background: rgba(210,153,34,.12); color: var(--warn); border: 1px solid rgba(210,153,34,.3); }
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .tab { padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); color: var(--text2); cursor: pointer; font-size: 13px; }
+  .tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); gap: 12px; }
+  .item:last-child { border-bottom: none; }
+  .item .t { font-size: 13px; }
+  .item .d { color: var(--text3); font-size: 12px; margin-top: 3px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; background: rgba(47,129,247,.15); color: var(--accent); }
+  .link { color: var(--accent); cursor: pointer; font-size: 13px; margin-left: 12px; }
+  .link:hover { text-decoration: underline; }
+  .chk { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text2); cursor: pointer; }
+  .chk input { width: auto; min-width: auto; }
+  .hidden { display: none !important; }
+  @media (max-width: 768px) {
+    .sidebar { position: static; width: 100%; border-right: none; border-bottom: 1px solid var(--border); padding: 10px 0; display: flex; overflow-x: auto; }
+    .logo { display: none; }
+    .nav-item { padding: 8px 14px; border-left: none; border-bottom: 2px solid transparent; white-space: nowrap; }
+    .nav-item.active { border-bottom-color: var(--accent); }
+    .main { margin-left: 0; padding: 16px; }
+    .row { flex-direction: column; align-items: stretch; }
+    input, select { min-width: 0; }
+  }
+</style>
+</head>
+<body>
+<nav class="sidebar">
+  <div class="logo">DSH <span>客户端</span></div>
+  <a class="nav-item active" data-page="overview">概览</a>
+  <a class="nav-item" data-page="sync">数据同步</a>
+  <a class="nav-item" data-page="backup">备份管理</a>
+  <a class="nav-item" data-page="plugins">插件市场</a>
+  <a class="nav-item" data-page="rules">规则继承</a>
+  <a class="nav-item" data-page="archive">归档会话</a>
+  <a class="nav-item" data-page="mainui" target="_blank">打开主界面 ↗</a>
+</nav>
+
+<main class="main">
+  <!-- 概览 -->
+  <div class="page active" id="page-overview">
+    <h2>概览</h2>
+    <div class="sub">DSH 服务状态与运行信息</div>
+    <div class="grid" id="overview-grid"></div>
+    <div class="card" style="margin-top:16px">
+      <h3>DSH 主界面</h3>
+      <div class="status-line">主服务运行在容器内 <b>8123</b> 端口，通过公网 <b>58123</b>（HTTPS）访问</div>
+      <button class="primary" onclick="window.open('/proxy?direct=1','_blank')">打开 DSH 主界面</button>
+      <button onclick="location.href='/m'" style="margin-left:8px">移动端界面</button>
+    </div>
+  </div>
+
+  <!-- 同步 -->
+  <div class="page" id="page-sync">
+    <h2>数据同步</h2>
+    <div class="sub">Git / WebDAV 双向同步，完整保留客户端 v1.1.7 同步能力</div>
+    <div class="tabs" id="sync-tabs">
+      <div class="tab active" data-method="git">Git 同步</div>
+      <div class="tab" data-method="webdav">WebDAV 同步</div>
+    </div>
+    <div class="card">
+      <h3>同步配置</h3>
+      <div id="git-config">
+        <div class="row"><label>远程仓库地址</label><input id="git-remote" placeholder="git@github.com:user/dsh-sync.git 或 https://..."></div>
+      </div>
+      <div id="webdav-config" class="hidden">
+        <div class="row"><label>WebDAV 地址</label><input id="dav-url" placeholder="https://your-dav.com/dav"></div>
+        <div class="row"><label>用户名</label><input id="dav-user" placeholder="WebDAV 用户名"></div>
+        <div class="row"><label>密码</label><input id="dav-pass" type="password" placeholder="WebDAV 密码"></div>
+      </div>
+      <div class="card" style="margin:12px 0;border-style:dashed">
+        <h3 style="font-size:13px">同步内容</h3>
+        <div class="row" style="margin-bottom:0">
+          <label class="chk"><input type="checkbox" id="c-sessions" checked> 会话数据</label>
+          <label class="chk"><input type="checkbox" id="c-api" checked> API 密钥</label>
+          <label class="chk"><input type="checkbox" id="c-settings" checked> 设置/插件配置</label>
+        </div>
+      </div>
+      <div class="row">
+        <label class="chk"><input type="checkbox" id="c-auto"> 自动同步</label>
+        <input id="c-interval" type="number" style="max-width:90px" min="1" value="30" placeholder="分钟"> 分钟
+      </div>
+      <div class="row">
+        <button class="primary" onclick="saveSync()">保存配置</button>
+        <button onclick="testSync()">测试连接</button>
+        <button onclick="syncNow()">立即同步</button>
+        <button class="danger" onclick="restoreSync()">从云端恢复</button>
+      </div>
+      <div id="sync-msg" class="msg"></div>
+    </div>
+  </div>
+
+  <!-- 备份 -->
+  <div class="page" id="page-backup">
+    <h2>备份管理</h2>
+    <div class="sub">WebDAV tar.gz 快照备份（保留最近 10 份）</div>
+    <div class="card">
+      <div class="row">
+        <button class="primary" onclick="backupCreate()">创建备份</button>
+        <button onclick="backupRefresh()">刷新列表</button>
+      </div>
+      <div id="backup-msg" class="msg"></div>
+      <table style="margin-top:12px">
+        <thead><tr><th>备份文件</th><th>时间</th><th>大小</th><th>操作</th></tr></thead>
+        <tbody id="backup-list"><tr><td colspan="4" style="color:var(--text3)">加载中…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 插件市场 -->
+  <div class="page" id="page-plugins">
+    <h2>插件市场</h2>
+    <div class="sub">GitHub 插件搜索与一键安装（含镜像加速与 AI 翻译）</div>
+    <div class="card">
+      <div class="row">
+        <input id="plugin-q" placeholder="搜索插件关键词（默认: topic:dsh-plugin）" value="topic:dsh-plugin">
+        <button class="primary" onclick="searchPlugins()">搜索</button>
+      </div>
+      <div id="plugin-msg" class="msg"></div>
+      <div id="plugin-list"></div>
+    </div>
+  </div>
+
+  <!-- 规则继承 -->
+  <div class="page" id="page-rules">
+    <h2>规则继承</h2>
+    <div class="sub">导入外部 AI 工具规则（Claude/Cursor/Gemini/Codex/Copilot）到 DSH</div>
+    <div class="card">
+      <button class="primary" onclick="scanRules()">扫描规则文件</button>
+      <div id="rules-msg" class="msg"></div>
+      <div id="rules-list" style="margin-top:12px"></div>
+    </div>
+  </div>
+
+  <!-- 归档 -->
+  <div class="page" id="page-archive">
+    <h2>归档会话</h2>
+    <div class="sub">管理已归档的会话，取消归档后重新出现在侧边栏</div>
+    <div class="card">
+      <button onclick="loadArchive()">刷新</button>
+      <div id="archive-msg" class="msg"></div>
+      <div id="archive-list" style="margin-top:12px"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+function showMsg(id, text, type) {
+  const el = $(id);
+  el.textContent = text;
+  el.className = 'msg show ' + (type || 'ok');
+  setTimeout(() => el.classList.remove('show'), 6000);
+}
+async function api(path, body) {
+  const r = await fetch('/api/' + path, {
+    method: body ? 'POST' : 'GET',
+    headers: body ? { 'Content-Type': 'application/json' } : {},
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  return r.json();
+}
+
+// ---- 导航 ----
+document.querySelectorAll('.nav-item[data-page]').forEach(a => {
+  a.addEventListener('click', e => {
+    if (a.getAttribute('data-page') === 'mainui') return;
+    document.querySelectorAll('.nav-item').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
+    a.classList.add('active');
+    $('page-' + a.dataset.page).classList.add('active');
+    if (a.dataset.page === 'backup') backupRefresh();
+    if (a.dataset.page === 'plugins') searchPlugins();
+    if (a.dataset.page === 'archive') loadArchive();
+  });
+});
+
+// ---- 概览 ----
+async function loadOverview() {
+  const s = await api('status');
+  const dot = ok => `<span class="dot ${ok ? 'ok' : 'bad'}"></span>`;
+  const stat = (k, v) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`;
+  $('overview-grid').innerHTML =
+    stat('服务状态', (s.online ? dot(true) : dot(false)) + (s.online ? '在线' : '离线')) +
+    stat('端口', s.port) +
+    stat('工作区', s.workspace || '—') +
+    stat('会话数', s.sessions) +
+    stat('插件数', s.plugins || '—') +
+    stat('余额', s.balance || '—') +
+    stat('同步方式', s.sync && s.sync.method ? s.sync.method.toUpperCase() : '未配置') +
+    stat('自动同步', s.sync && s.sync.auto ? s.sync.intervalMin + ' 分钟' : '关闭');
+}
+loadOverview();
+setInterval(loadOverview, 15000);
+
+// ---- 同步 ----
+let currentMethod = 'git';
+document.querySelectorAll('#sync-tabs .tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('#sync-tabs .tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    currentMethod = t.dataset.method;
+    $('git-config').classList.toggle('hidden', currentMethod !== 'git');
+    $('webdav-config').classList.toggle('hidden', currentMethod !== 'webdav');
+    loadSyncConfig();
+  });
+});
+async function loadSyncConfig() {
+  const c = await api('sync/get-config');
+  $('git-remote').value = (c.git && c.git.remote) || '';
+  $('dav-url').value = (c.webdav && c.webdav.url) || '';
+  $('dav-user').value = (c.webdav && c.webdav.user) || '';
+  $('dav-pass').value = (c.webdav && c.webdav.pass) || '';
+  const content = c.content || {};
+  $('c-sessions').checked = content.sessions !== false;
+  $('c-api').checked = content.api !== false;
+  $('c-settings').checked = content.settings !== false;
+  $('c-auto').checked = !!c.auto;
+  $('c-interval').value = c.intervalMin || 30;
+}
+async function saveSync() {
+  const cfg = { method: currentMethod, auto: $('c-auto').checked, intervalMin: Number($('c-interval').value) || 30 };
+  if (currentMethod === 'git') cfg.git = { remote: $('git-remote').value.trim() };
+  else cfg.webdav = { url: $('dav-url').value.trim(), user: $('dav-user').value, pass: $('dav-pass').value };
+  cfg.content = { sessions: $('c-sessions').checked, api: $('c-api').checked, settings: $('c-settings').checked };
+  const r = await api('sync/save-config', cfg);
+  showMsg('sync-msg', '✅ 同步配置已保存', 'ok');
+}
+async function testSync() {
+  const p = currentMethod === 'git' ? { method: 'git', remote: $('git-remote').value.trim() }
+    : { method: 'webdav', webdav: { url: $('dav-url').value.trim(), user: $('dav-user').value, pass: $('dav-pass').value } };
+  showMsg('sync-msg', '⏳ 测试连接中…', 'warn');
+  const r = await api('sync/test', p);
+  showMsg('sync-msg', (r.ok ? '✅ ' : '❌ ') + r.msg, r.ok ? 'ok' : 'bad');
+}
+async function syncNow() {
+  showMsg('sync-msg', '⏳ 同步中…', 'warn');
+  const r = await api('sync/now');
+  showMsg('sync-msg', (r.ok ? '✅ ' : '❌ ') + r.msg, r.ok ? 'ok' : 'bad');
+}
+async function restoreSync() {
+  if (!confirm('将从云端恢复数据覆盖本地，确定继续？')) return;
+  showMsg('sync-msg', '⏳ 恢复中…', 'warn');
+  const r = await api('sync/restore');
+  showMsg('sync-msg', (r.ok ? '✅ ' : '❌ ') + r.msg, r.ok ? 'ok' : 'bad');
+}
+loadSyncConfig();
+
+// ---- 备份 ----
+async function backupCreate() {
+  showMsg('backup-msg', '⏳ 创建备份中…', 'warn');
+  const r = await api('backup/create');
+  showMsg('backup-msg', (r.ok ? '✅ ' : '❌ ') + r.msg, r.ok ? 'ok' : 'bad');
+  backupRefresh();
+}
+async function backupRefresh() {
+  const r = await api('backup/list');
+  const tb = $('backup-list');
+  if (!r.ok) { tb.innerHTML = `<tr><td colspan="4" style="color:var(--bad)">${r.msg}</td></tr>`; return; }
+  if (!r.items.length) { tb.innerHTML = '<tr><td colspan="4" style="color:var(--text3)">暂无备份（请先配置 WebDAV 并创建备份）</td></tr>'; return; }
+  tb.innerHTML = r.items.map(b => `
+    <tr>
+      <td>${b.name}</td><td>${b.date}</td>
+      <td>${b.size ? (b.size/1024/1024).toFixed(1) + ' MB' : '—'}</td>
+      <td><span class="link" onclick="backupRestore('${b.name}')">恢复</span></td>
+    </tr>`).join('');
+}
+async function backupRestore(name) {
+  if (!confirm('将从备份 ' + name + ' 恢复，确定继续？')) return;
+  showMsg('backup-msg', '⏳ 恢复中…', 'warn');
+  const r = await api('backup/restore', { name });
+  showMsg('backup-msg', (r.ok ? '✅ ' : '❌ ') + r.msg, r.ok ? 'ok' : 'bad');
+}
+
+// ---- 插件市场 ----
+let plugins = [];
+async function searchPlugins() {
+  const q = $('plugin-q').value.trim() || 'topic:dsh-plugin';
+  showMsg('plugin-msg', '⏳ 搜索中…', 'warn');
+  const r = await api('plugins/search', { q });
+  if (!r.ok) { showMsg('plugin-msg', '❌ ' + r.msg, 'bad'); return; }
+  plugins = r.items;
+  showMsg('plugin-msg', `✅ 找到 ${r.total} 个插件`, 'ok');
+  renderPlugins();
+}
+function renderPlugins() {
+  $('plugin-list').innerHTML = plugins.map(p => `
+    <div class="item">
+      <div>
+        <div class="t"><b>${p.fullName}</b> <span class="badge">⭐ ${p.stars}</span></div>
+        <div class="d">${p.desc || '暂无描述'}</div>
+        <div class="d">更新: ${(p.updated || '').slice(0,10)} ${p.lang ? '| ' + p.lang : ''}</div>
+      </div>
+      <div style="flex:none">
+        <button onclick="installPlugin('${p.fullName}')">安装</button>
+        <button onclick="explainPlugin('${p.fullName}')">AI 解释</button>
+      </div>
+    </div>`).join('') || '<div style="color:var(--text3)">无结果</div>';
+}
+async function installPlugin(fullName) {
+  if (!confirm('安装插件 ' + fullName + '？')) return;
+  showMsg('plugin-msg', '⏳ 安装中（npm 或 Git 镜像，可能较慢）…', 'warn');
+  const repo = fullName.split('/')[1] ? fullName : '';
+  const r = await api('plugins/install', { repo, pkg: fullName });
+  showMsg('plugin-msg', (r.ok ? '✅ ' : '❌ ') + r.msg, r.ok ? 'ok' : 'bad');
+}
+async function explainPlugin(fullName) {
+  showMsg('plugin-msg', '⏳ AI 解析中…', 'warn');
+  const r = await api('plugins/translate', { text: fullName + ' plugin for DeepSeek Harness' });
+  showMsg('plugin-msg', '💡 ' + r.text, 'ok');
+}
+
+// ---- 规则继承 ----
+async function scanRules() {
+  const r = await api('rules/scan');
+  if (!r.length) { showMsg('rules-msg', '未找到可导入的规则文件', 'warn'); $('rules-list').innerHTML = ''; return; }
+  showMsg('rules-msg', `✅ 找到 ${r.length} 个规则文件`, 'ok');
+  $('rules-list').innerHTML = r.map(x => `
+    <div class="item">
+      <div><div class="t">${x.name}</div><div class="d">${(x.size/1024).toFixed(1)} KB</div></div>
+      <button onclick="importRule(${JSON.stringify(x).replace(/"/g, '&quot;')})">AI 精简导入</button>
+    </div>`).join('');
+}
+async function importRule(sel) {
+  if (!confirm('将规则 ' + sel.name + ' 通过 AI 精简后写入 ~/.dsh/AGENTS.md？')) return;
+  showMsg('rules-msg', '⏳ AI 处理中…', 'warn');
+  const r = await api('rules/import', sel);
+  showMsg('rules-msg', (r.ok ? '✅ ' : '❌ ') + r.msg, r.ok ? 'ok' : 'bad');
+}
+
+// ---- 归档 ----
+async function loadArchive() {
+  const r = await api('archive/list');
+  if (!r.ok) { $('archive-list').innerHTML = '<div style="color:var(--bad)">' + r.msg + '</div>'; return; }
+  if (!r.items.length) { $('archive-list').innerHTML = '<div style="color:var(--text3)">暂无归档会话</div>'; return; }
+  $('archive-list').innerHTML = r.items.map(it => `
+    <div class="item">
+      <div><div class="t">${it.id.slice(0, 16)}…</div><div class="d">${it.exists ? '文件存在' : '<span style="color:var(--bad)">文件缺失</span>'}</div></div>
+      <button onclick="unarchive('${it.id}')">取消归档</button>
+    </div>`).join('');
+}
+async function unarchive(id) {
+  const r = await api('archive/unarchive', { id });
+  showMsg('archive-msg', (r.ok ? '✅ ' : '❌ ') + r.msg, r.ok ? 'ok' : 'bad');
+  loadArchive();
+}
+</script>
+</body>
+</html>

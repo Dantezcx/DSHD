@@ -1,0 +1,38 @@
+# ============================================================
+# DSH Docker 移植版 — 容器编排
+# 架构：
+#   dsh    → 主服务 (8123) DSH Web GUI（桌面 UI）
+#   mgmt   → 管理服务 (8124) 同步/备份/插件/移动端 UI
+# HTTPS 由宿主机现有 nginx 反代（复用 game.dantezcx.vip 证书）：
+#   58123 → dsh:8123
+# ============================================================
+services:
+  dsh:
+    build: .
+    image: dsh-docker:1.0.0
+    container_name: dsh
+    restart: unless-stopped
+    environment:
+      - DSH_HOME=/data/.dsh
+      - DSH_WEB_PORT=8123
+      - DSH_MGMT_PORT=8124
+      - TZ=Asia/Shanghai
+    volumes:
+      # 数据持久化：会话/配置/插件/同步数据
+      - dsh-data:/data
+      # API 密钥（首次运行放入 .credentials.yaml 后挂载）
+      # - ./credentials.yaml:/data/.dsh/.credentials.yaml:ro
+    ports:
+      # 管理服务（桌面管理页 + 移动端 UI，经宿主机 nginx 反代后对外）
+      - "127.0.0.1:8124:8124"
+      # 主服务：仅本机回环，由宿主机 nginx 反代到 58123
+      - "127.0.0.1:8123:8123"
+    healthcheck:
+      test: ["CMD", "sh", "-c", "(echo > /dev/tcp/127.0.0.1/8123) 2>/dev/null && (echo > /dev/tcp/127.0.0.1/8124) 2>/dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
+
+volumes:
+  dsh-data:
