@@ -9,3 +9,6 @@ nginx
 README.md
 .gitignore
 .dockerignore
+**/pnpm-lock.yaml
+**/package-lock.json
+**/.pnpm-store

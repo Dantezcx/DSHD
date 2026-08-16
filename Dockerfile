@@ -5,11 +5,17 @@
 # ============================================================
 FROM node:22-alpine AS base
 
+# ---- 换 alpine 国内源（清华镜像，加速 apk 下载）----
+RUN sed -i 's|dl-cdn.alpinelinux.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apk/repositories
+
 # ---- 基础工具（git 供同步引擎与插件安装、bash 供脚本）----
 # node-pty 等原生模块需要编译工具链
 RUN apk add --no-cache git bash curl tar openssh-client python3 make g++ linux-headers
 
 # ---- npm 国内镜像加速 + 全局安装 dsh 核心 ----
+# node-gyp 头文件走 npmmirror 镜像（nodejs.org 国内不通导致编译失败）
+ENV npm_config_registry=https://registry.npmmirror.com \
+    npm_config_disturl=https://npmmirror.com/mirrors/node
 RUN npm config set registry https://registry.npmmirror.com && \
     npm install -g @deepseek-ai/dsh@0.1.0-rc.6
 
@@ -22,7 +28,24 @@ COPY profile-web/package.json /opt/dsh-profile/package.json
 COPY profile-web/pnpm-workspace.yaml /opt/dsh-profile/pnpm-workspace.yaml
 COPY profile-web/.npmrc /opt/dsh-profile/.npmrc
 WORKDIR /opt/dsh-profile
-RUN pnpm install --config.confirmModulesPurge=false --no-optional || pnpm install
+# pnpm install：先建完整 lockfile（含 optional），再安装；
+# cloudflared 的 postinstall 联网下载被 ignore-scripts 跳过，
+# 之后精确重建 ssh2/cpu-features 原生模块
+RUN pnpm install --lockfile-only --ignore-scripts && \
+    pnpm install --ignore-scripts && \
+    pnpm rebuild cpu-features ssh2
+# 手动补 cloudflared 二进制（GitHub 直连国内不通，走 ghproxy 镜像）
+RUN mkdir -p /tmp/cf-dl && \
+    (curl -sL --max-time 300 -o /tmp/cf-dl/cloudflared \
+      https://ghproxy.net/https://github.com/cloudflare/cloudflared/releases/download/2024.6.1/cloudflared-linux-amd64 || \
+     curl -sL --max-time 300 -o /tmp/cf-dl/cloudflared \
+      https://ghfast.top/https://github.com/cloudflare/cloudflared/releases/download/2024.6.1/cloudflared-linux-amd64 || \
+     curl -sL --max-time 300 -o /tmp/cf-dl/cloudflared \
+      https://gh-proxy.com/https://github.com/cloudflare/cloudflared/releases/download/2024.6.1/cloudflared-linux-amd64) && \
+    chmod +x /tmp/cf-dl/cloudflared && \
+    mkdir -p node_modules/cloudflared/bin && \
+    cp /tmp/cf-dl/cloudflared node_modules/cloudflared/bin/cloudflared && \
+    rm -rf /tmp/cf-dl
 
 # ---- 客户端服务（同步引擎 + 管理 API + 双端 UI 的宿主）----
 WORKDIR /app

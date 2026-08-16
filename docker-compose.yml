@@ -17,6 +17,18 @@ services:
       - DSH_WEB_PORT=8123
       - DSH_MGMT_PORT=8124
       - TZ=Asia/Shanghai
+      # 控制 Node 堆内存，防止吃光宿主内存触发 OOM
+      - NODE_OPTIONS=--max-old-space-size=1024
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+          cpus: "4"
+        reservations:
+          memory: 512m
+          cpus: "1"
+    mem_limit: 2g
+    cpus: "4"
     volumes:
       # 数据持久化：会话/配置/插件/同步数据
       - dsh-data:/data

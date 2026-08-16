@@ -3,10 +3,6 @@ packages:
 
 nodeLinker: hoisted
 autoInstallPeers: false
-allowBuilds:
-  cloudflared: true
-  cpu-features: true
-  ssh2: true
 minimumReleaseAgeExclude:
   - '@linxin666/dsh-client-ui-aionui-panel@0.1.12'
   - '@linxin666/dsh-client-ui-git-graph@0.1.12'

@@ -55,6 +55,7 @@ chmod -R u+rw "$DSH_HOME" 2>/dev/null || true
 
 # ---------- 2. 启动 dsh web 主服务（后台） ----------
 log "启动 dsh web 主服务 (端口 $DSH_WEB_PORT)..."
+export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=1024}"
 nohup dsh --profile web --port "$DSH_WEB_PORT" > /data/dsh-web.log 2>&1 &
 DSH_PID=$!
 log "dsh web PID=$DSH_PID（日志: /data/dsh-web.log）"
