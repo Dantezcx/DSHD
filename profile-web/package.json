@@ -8,6 +8,15 @@
     "dsh-chat-import": "^0.2.0",
     "dsh-plugin-marketplace": "^0.2.2"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "cloudflared",
+      "ssh2",
+      "cpu-features",
+      "node-pty",
+      "koffi"
+    ]
+  },
   "dsh": {
     "profile": {
       "bundles": [

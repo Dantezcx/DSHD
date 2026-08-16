@@ -3,10 +3,11 @@
 # 目标：完整复刻 DSH 客户端 v1.1.7 的功能（同步引擎/插件全家桶/
 #       状态监控/双端 UI），以 Web 服务形态运行
 # ============================================================
-FROM node:20-alpine AS base
+FROM node:22-alpine AS base
 
 # ---- 基础工具（git 供同步引擎与插件安装、bash 供脚本）----
-RUN apk add --no-cache git bash curl tar openssh-client
+# node-pty 等原生模块需要编译工具链
+RUN apk add --no-cache git bash curl tar openssh-client python3 make g++ linux-headers
 
 # ---- npm 国内镜像加速 + 全局安装 dsh 核心 ----
 RUN npm config set registry https://registry.npmmirror.com && \
@@ -16,8 +17,10 @@ RUN npm config set registry https://registry.npmmirror.com && \
 RUN mkdir -p /opt/dsh-profile && \
     npm install -g pnpm
 
-# profile 声明文件：与客户端 v1.1.7 的 ~/.dsh/profiles/web/package.json 一致
+# profile 声明文件：与客户端 v1.1.7 的 ~/.dsh/profiles/web 一致
 COPY profile-web/package.json /opt/dsh-profile/package.json
+COPY profile-web/pnpm-workspace.yaml /opt/dsh-profile/pnpm-workspace.yaml
+COPY profile-web/.npmrc /opt/dsh-profile/.npmrc
 WORKDIR /opt/dsh-profile
 RUN pnpm install --config.confirmModulesPurge=false --no-optional || pnpm install
 
