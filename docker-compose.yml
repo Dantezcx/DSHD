@@ -4,7 +4,9 @@
 #   dsh    → 主服务 (8123) DSH Web GUI（桌面 UI）
 #   mgmt   → 管理服务 (8124) 同步/备份/插件/移动端 UI
 # HTTPS 由宿主机现有 nginx 反代（复用 game.dantezcx.vip 证书）：
-#   58123 → dsh:8123
+#   58123 → 127.0.0.1:8123
+# 注意：dsh web 出于安全只监听 127.0.0.1，因此容器用 host 网络，
+#       容器内 127.0.0.1 即宿主 127.0.0.1，宿主 nginx 可直接反代。
 # ============================================================
 services:
   dsh:
@@ -12,10 +14,15 @@ services:
     image: dsh-docker:1.0.0
     container_name: dsh
     restart: unless-stopped
+    command: ["sh", "/app/entrypoint.sh"]
+    network_mode: host
     environment:
       - DSH_HOME=/data/.dsh
       - DSH_WEB_PORT=8123
       - DSH_MGMT_PORT=8124
+      # 公网访问域名（放行浏览器信任检查，否则 /api 403）
+      # 需包含带端口形式（浏览器 Origin 是 https://host:port）
+      - DSH_TRUSTED_HOST=game.dantezcx.vip game.dantezcx.vip:58123 game.dantezcx.vip:58124
       - TZ=Asia/Shanghai
       # 控制 Node 堆内存，防止吃光宿主内存触发 OOM
       - NODE_OPTIONS=--max-old-space-size=1024
@@ -38,11 +45,6 @@ services:
       - ./web:/app/web:ro
       # API 密钥（首次运行放入 .credentials.yaml 后挂载）
       # - ./credentials.yaml:/data/.dsh/.credentials.yaml:ro
-    ports:
-      # 管理服务（桌面管理页 + 移动端 UI，经宿主机 nginx 反代后对外）
-      - "127.0.0.1:8124:8124"
-      # 主服务：仅本机回环，由宿主机 nginx 反代到 58123
-      - "127.0.0.1:8123:8123"
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://127.0.0.1:8123/", "-o", "/dev/null"]
       interval: 30s

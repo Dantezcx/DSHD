@@ -74,7 +74,17 @@ chmod -R u+rw "$DSH_HOME" 2>/dev/null || true
 # ---------- 2. 启动 dsh web 主服务（后台） ----------
 log "启动 dsh web 主服务 (端口 $DSH_WEB_PORT)..."
 export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=1024}"
-nohup dsh --profile web --port "$DSH_WEB_PORT" > /data/dsh-web.log 2>&1 &
+# dsh web 出于安全只允许 127.0.0.1（防远程代码执行）；
+# 容器用 host 网络，127.0.0.1 即宿主 127.0.0.1，宿主 nginx 可直接反代
+# --trusted-host：放行公网域名访问（浏览器信任检查，否则 403）
+# 需包含带端口的完整 authority（浏览器 Origin 是 https://host:port）
+TRUSTED_HOST=""
+if [ -n "$DSH_TRUSTED_HOST" ]; then
+  for h in $DSH_TRUSTED_HOST; do
+    TRUSTED_HOST="$TRUSTED_HOST --trusted-host $h"
+  done
+fi
+nohup dsh --profile web --port "$DSH_WEB_PORT" $TRUSTED_HOST > /data/dsh-web.log 2>&1 &
 DSH_PID=$!
 log "dsh web PID=$DSH_PID（日志: /data/dsh-web.log）"
 
