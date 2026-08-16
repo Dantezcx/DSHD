@@ -71,6 +71,29 @@ EOF
 3. 选择同步内容（会话/API 密钥/设置），可开启自动同步
 4. 「立即同步」测试；「从云端恢复」还原数据
 
+## ⚠️ 部署注意事项（重要）
+
+### 内存管理（防 OOM）
+DSH 全家桶（dsh web + 插件 + 管理服务）内存峰值可达 2-3G。**在内存紧张（如 10G）的服务器上**：
+- ✅ compose 已内置 `mem_limit: 2g` + `cpus: "4"` + Node 堆 1G 限制
+- ⚠️ 若服务器还有其他大容器（如 omniroute/kavita），**建议先停用非关键容器**再启动 DSH，否则可能触发 OOM 系统僵死
+- 📝 可用 `docker stats` 监控内存，`free -h` 查看系统内存
+
+### 容器管理
+```bash
+# 停止非关键容器释放内存（部署 DSH 前）
+docker stop kavita omniroute heimdall qd
+
+# 启动 DSH
+docker compose up -d
+
+# 查看状态
+docker compose ps
+```
+
+### 代码热更新
+`entrypoint.sh`、`server/`、`web/` 已通过 volume 挂载，修改后 `docker compose restart dsh` 即可生效，无需重建镜像。
+
 ## 🔧 常用命令
 ```bash
 docker compose logs -f dsh      # 查看主服务日志
