@@ -9,9 +9,14 @@
 <title>DSH 移动端</title>
 <style>
   :root {
-    --bg: #0d1117; --panel: #161b22; --border: #21262d;
+    --bg: #0d1117; --card: #161b22; --border: #21262d;
     --text: #e6edf3; --text2: #8b949e; --text3: #6e7681;
-    --accent: #2f81f7; --ok: #3fb950; --bad: #f85149; --warn: #d29922;
+    --accent: #2f81f7; --accent-soft: #1c2a3d;
+    --user-bubble: #2f81f7; --user-text: #ffffff;
+    --ai-bubble: #1c2129; --ai-text: #e6edf3;
+    --ok: #3fb950; --bad: #f85149; --warn: #d29922;
+    --radius: 14px;
+    --safe-t: env(safe-area-inset-top, 0px);
     --safe-b: env(safe-area-inset-bottom, 0px);
   }
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -22,341 +27,348 @@
     display: flex; flex-direction: column; min-height: 100dvh;
     overscroll-behavior-y: none;
   }
-  /* 顶部状态栏 */
-  .statusbar {
-    background: var(--panel); border-bottom: 1px solid var(--border);
-    padding: 10px 16px; display: flex; align-items: center; gap: 10px;
-    padding-top: calc(10px + env(safe-area-inset-top, 0px));
-    flex: none;
+
+  /* ===== 会话列表页 ===== */
+  .topbar {
+    background: var(--card); border-bottom: 1px solid var(--border);
+    padding: calc(12px + var(--safe-t)) 16px 12px;
+    display: flex; align-items: center; gap: 10px; flex: none;
   }
-  .statusbar .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--warn); }
-  .statusbar.online .dot { background: var(--ok); }
-  .statusbar.offline .dot { background: var(--bad); }
-  .statusbar .svc { font-weight: 600; font-size: 14px; }
-  .statusbar .meta { color: var(--text3); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; text-align: right; }
-  /* 内容区 */
-  .content { flex: 1; overflow-y: auto; padding: 14px; padding-bottom: calc(14px + var(--safe-b)); }
-  .card {
-    background: var(--panel); border: 1px solid var(--border);
-    border-radius: 14px; padding: 16px; margin-bottom: 14px;
+  .topbar .title { font-size: 17px; font-weight: 700; flex: 1; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--accent-soft); color: var(--accent);
+    border-radius: 999px; padding: 6px 12px; font-size: 13px; font-weight: 600;
   }
-  .card h3 { font-size: 13px; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
-  .row { display: flex; align-items: center; justify-content: space-between; padding: 11px 0; border-bottom: 1px solid rgba(33,38,45,.6); gap: 10px; }
-  .row:last-child { border-bottom: none; }
-  .row .k { color: var(--text2); font-size: 14px; flex: none; }
-  .row .v { color: var(--text); font-weight: 600; font-size: 15px; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%; }
-  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .stat { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 14px; }
-  .stat .k { color: var(--text3); font-size: 11px; }
-  .stat .v { font-size: 18px; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
-  /* 按钮 */
-  .btn {
-    display: block; width: 100%; padding: 14px; border-radius: 12px;
-    border: none; font-size: 16px; font-weight: 600; cursor: pointer;
-    background: var(--accent); color: #fff; margin-bottom: 10px;
-    transition: transform .1s, opacity .15s; touch-action: manipulation;
+  .chip .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
+
+  .content { flex: 1; overflow-y: auto; padding: 14px 14px calc(14px + var(--safe-b)); }
+  .session {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 15px 16px; margin-bottom: 10px; cursor: pointer; display: flex;
+    align-items: center; gap: 12px; transition: background .12s;
   }
-  .btn:active { transform: scale(.97); opacity: .9; }
-  .btn.ghost { background: var(--panel); color: var(--text); border: 1px solid var(--border); }
-  .btn.danger { background: transparent; color: var(--bad); border: 1px solid var(--bad); }
-  .btn.small { padding: 10px; font-size: 14px; }
-  .btn-row { display: flex; gap: 10px; }
-  .btn-row .btn { flex: 1; margin-bottom: 0; }
-  /* 表单 */
-  input, select {
-    width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text);
-    border-radius: 10px; padding: 12px 14px; font-size: 16px; margin-bottom: 10px;
-    -webkit-appearance: none; appearance: none;
+  .session:active { background: #fafbfc; }
+  .session .avatar {
+    width: 42px; height: 42px; border-radius: 12px; flex: none;
+    background: var(--accent-soft); color: var(--accent);
+    display: flex; align-items: center; justify-content: center; font-size: 19px;
   }
-  input:focus { outline: none; border-color: var(--accent); }
-  .field { margin-bottom: 4px; }
-  .field label { display: block; color: var(--text2); font-size: 13px; margin-bottom: 6px; }
-  .chk { display: flex; align-items: center; gap: 8px; padding: 8px 0; font-size: 14px; color: var(--text2); }
-  .chk input { width: 20px; height: 20px; margin: 0; accent-color: var(--accent); }
-  /* 底部导航 */
-  .tabbar {
-    display: flex; background: var(--panel); border-top: 1px solid var(--border);
-    padding-bottom: var(--safe-b); flex: none;
+  .session .body { flex: 1; min-width: 0; }
+  .session .name { font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .session .meta { font-size: 12px; color: var(--text3); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .session .arrow { color: var(--text3); font-size: 18px; flex: none; }
+  .session .live { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); flex: none; }
+
+  .empty { color: var(--text3); text-align: center; padding: 60px 0; font-size: 14px; }
+  .loading { color: var(--text3); text-align: center; padding: 40px 0; font-size: 14px; }
+
+  /* ===== 聊天页 ===== */
+  .chatbar {
+    background: var(--card); border-bottom: 1px solid var(--border);
+    padding: calc(10px + var(--safe-t)) 8px 10px;
+    display: flex; align-items: center; gap: 4px; flex: none;
   }
-  .tabbar .tab {
-    flex: 1; padding: 9px 0 10px; text-align: center; color: var(--text3);
-    font-size: 11px; cursor: pointer; position: relative; touch-action: manipulation;
+  .chatbar .back {
+    border: none; background: none; font-size: 24px; color: var(--text);
+    padding: 2px 10px; cursor: pointer; line-height: 1;
   }
-  .tabbar .tab .ic { font-size: 20px; display: block; margin-bottom: 2px; }
-  .tabbar .tab.active { color: var(--accent); }
-  .tabbar .tab.active::after {
-    content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
-    width: 40px; height: 3px; border-radius: 0 0 3px 3px; background: var(--accent);
+  .chatbar .c-title { flex: 1; font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chatbar .c-status { font-size: 12px; color: var(--text3); flex: none; padding-right: 8px; }
+  .chatbar .c-status.running { color: var(--ok); }
+
+  .msgs {
+    flex: 1; overflow-y: auto; padding: 16px 14px;
+    display: flex; flex-direction: column; gap: 12px;
   }
-  .page { display: none; flex: 1; flex-direction: column; min-height: 0; }
-  .page.active { display: flex; }
-  .msg {
-    padding: 11px 14px; border-radius: 10px; font-size: 13px; margin: 10px 0;
-    display: none; word-break: break-all;
+  .m { display: flex; flex-direction: column; max-width: 84%; }
+  .m.user { align-self: flex-end; align-items: flex-end; }
+  .m.ai { align-self: flex-start; align-items: flex-start; }
+  .m .bubble {
+    padding: 11px 14px; border-radius: 16px; font-size: 15px; line-height: 1.55;
+    word-break: break-word; white-space: pre-wrap;
   }
-  .msg.show { display: block; }
-  .msg.ok { background: rgba(63,185,80,.12); color: var(--ok); }
-  .msg.bad { background: rgba(248,81,73,.12); color: var(--bad); }
-  .msg.warn { background: rgba(210,153,34,.12); color: var(--warn); }
-  .item {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 13px 0; border-bottom: 1px solid rgba(33,38,45,.6); gap: 10px;
+  .m.user .bubble { background: var(--user-bubble); color: var(--user-text); border-bottom-right-radius: 5px; }
+  .m.ai .bubble { background: var(--ai-bubble); color: var(--ai-text); border: 1px solid var(--border); border-bottom-left-radius: 5px; }
+  .m .time { font-size: 11px; color: var(--text3); margin-top: 4px; padding: 0 4px; }
+  .m .tool-note { font-size: 12px; color: var(--text3); background: var(--card); border: 1px dashed var(--border); border-radius: 10px; padding: 6px 10px; margin-top: 2px; }
+
+  .typing { display: inline-flex; gap: 4px; padding: 12px 16px; background: var(--ai-bubble); border: 1px solid var(--border); border-radius: 16px; }
+  .typing i { width: 7px; height: 7px; border-radius: 50%; background: var(--text3); animation: blink 1.2s infinite; }
+  .typing i:nth-child(2) { animation-delay: .2s; }
+  .typing i:nth-child(3) { animation-delay: .4s; }
+  @keyframes blink { 0%,80%,100% { opacity: .3; } 40% { opacity: 1; } }
+
+  /* 输入栏 */
+  .inputbar {
+    background: var(--card); border-top: 1px solid var(--border);
+    padding: 10px 12px calc(10px + var(--safe-b));
+    display: flex; align-items: flex-end; gap: 8px; flex: none;
   }
-  .item:last-child { border-bottom: none; }
-  .item .t { font-size: 14px; font-weight: 500; }
-  .item .d { color: var(--text3); font-size: 12px; margin-top: 2px; }
-  .link { color: var(--accent); font-size: 13px; }
-  .badge { display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 11px; background: rgba(47,129,247,.15); color: var(--accent); margin-left: 6px; }
-  .seg { display: flex; gap: 8px; margin-bottom: 12px; }
-  .seg .s { flex: 1; text-align: center; padding: 9px; border-radius: 10px; border: 1px solid var(--border); color: var(--text2); font-size: 14px; }
-  .seg .s.active { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .empty { color: var(--text3); text-align: center; padding: 30px 0; font-size: 14px; }
+  .inputbar textarea {
+    flex: 1; border: 1px solid var(--border); border-radius: 20px; background: var(--bg);
+    font: 15px inherit; color: var(--text); padding: 10px 14px; resize: none;
+    max-height: 120px; outline: none;
+  }
+  .inputbar textarea:focus { border-color: var(--accent); }
+  .inputbar .send {
+    width: 42px; height: 42px; border-radius: 50%; border: none; flex: none;
+    background: var(--accent); color: #fff; font-size: 17px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: opacity .15s, transform .1s;
+  }
+  .inputbar .send:active { transform: scale(.92); }
+  .inputbar .send:disabled { opacity: .4; }
+
+  .toast {
+    position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(110px + var(--safe-b));
+    background: rgba(26,29,33,.85); color: #fff; font-size: 13px;
+    padding: 8px 16px; border-radius: 999px; opacity: 0; pointer-events: none;
+    transition: opacity .2s; z-index: 99; max-width: 80vw; text-align: center;
+  }
+  .toast.show { opacity: 1; }
 </style>
 </head>
 <body>
-<!-- 状态栏 -->
-<div class="statusbar" id="statusbar">
-  <span class="dot"></span>
-  <span class="svc" id="svc">检测中…</span>
-  <span class="meta" id="meta"></span>
+
+<!-- ===== 会话列表 ===== -->
+<div id="view-sessions" style="display:flex;flex-direction:column;height:100dvh;">
+  <div class="topbar">
+    <div class="title">对话</div>
+    <div class="chip" id="balance-chip">余额 …</div>
+  </div>
+  <div class="content" id="session-list"><div class="loading">加载中…</div></div>
 </div>
 
-<!-- 页面: 首页 -->
-<div class="page active" id="page-home">
-  <div class="content">
-    <div class="stat-grid" id="home-stats"></div>
-    <div class="card" style="margin-top:14px">
-      <h3>快速操作</h3>
-      <button class="btn" onclick="openMain()">💬 打开 DSH 对话</button>
-      <div class="btn-row">
-        <button class="btn ghost" onclick="goTab('sync')">同步</button>
-        <button class="btn ghost" onclick="goTab('backup')">备份</button>
-      </div>
-    </div>
-    <div class="card">
-      <h3>同步状态</h3>
-      <div id="sync-status">加载中…</div>
-    </div>
+<!-- ===== 聊天 ===== -->
+<div id="view-chat" style="display:none;flex-direction:column;height:100dvh;">
+  <div class="chatbar">
+    <button class="back" id="btn-back">‹</button>
+    <div class="c-title" id="chat-title">会话</div>
+    <div class="c-status" id="chat-status"></div>
+  </div>
+  <div class="msgs" id="msg-list"></div>
+  <div class="inputbar">
+    <textarea id="input" rows="1" placeholder="发消息…"></textarea>
+    <button class="send" id="btn-send">➤</button>
   </div>
 </div>
 
-<!-- 页面: 同步 -->
-<div class="page" id="page-sync">
-  <div class="content">
-    <h2 style="font-size:18px;margin-bottom:12px">数据同步</h2>
-    <div class="seg" id="sync-seg">
-      <div class="s active" data-method="git">Git</div>
-      <div class="s" data-method="webdav">WebDAV</div>
-    </div>
-    <div class="card">
-      <div id="sync-form">
-        <div class="field" id="f-git"><label>Git 远程仓库</label><input id="git-remote" placeholder="git@github.com:user/dsh-sync.git"></div>
-        <div class="field hidden" id="f-dav-url"><label>WebDAV 地址</label><input id="dav-url" placeholder="https://your-dav.com/dav"></div>
-        <div class="field hidden" id="f-dav-user"><label>用户名</label><input id="dav-user"></div>
-        <div class="field hidden" id="f-dav-pass"><label>密码</label><input id="dav-pass" type="password"></div>
-        <label class="chk"><input type="checkbox" id="c-auto"> 自动同步</label>
-        <div class="field" style="margin-top:6px"><label>同步间隔（分钟）</label><input id="c-interval" type="number" value="30" min="1" inputmode="numeric"></div>
-      </div>
-      <button class="btn" onclick="saveSync()">保存配置</button>
-      <div class="btn-row">
-        <button class="btn ghost" onclick="syncNow()">立即同步</button>
-        <button class="btn ghost" onclick="testSync()">测试连接</button>
-      </div>
-      <button class="btn danger" onclick="restoreSync()">从云端恢复</button>
-      <div id="sync-msg" class="msg"></div>
-    </div>
-  </div>
-</div>
-
-<!-- 页面: 备份 -->
-<div class="page" id="page-backup">
-  <div class="content">
-    <h2 style="font-size:18px;margin-bottom:12px">备份管理</h2>
-    <div class="btn-row" style="margin-bottom:12px">
-      <button class="btn" onclick="backupCreate()">创建备份</button>
-      <button class="btn ghost" onclick="loadBackup()">刷新</button>
-    </div>
-    <div id="backup-msg" class="msg"></div>
-    <div class="card" id="backup-list"></div>
-  </div>
-</div>
-
-<!-- 页面: 插件 -->
-<div class="page" id="page-plugins">
-  <div class="content">
-    <h2 style="font-size:18px;margin-bottom:12px">插件市场</h2>
-    <div class="seg" id="plugin-seg">
-      <div class="s active">搜索</div>
-      <div class="s" onclick="openMain()">主界面</div>
-    </div>
-    <input id="plugin-q" placeholder="搜索 dsh 插件" value="topic:dsh-plugin">
-    <button class="btn" onclick="searchPlugins()">搜索</button>
-    <div id="plugin-msg" class="msg"></div>
-    <div id="plugin-list"></div>
-  </div>
-</div>
-
-<!-- 底部导航 -->
-<div class="tabbar">
-  <div class="tab active" data-tab="home"><span class="ic">🏠</span>首页</div>
-  <div class="tab" data-tab="sync"><span class="ic">🔄</span>同步</div>
-  <div class="tab" data-tab="backup"><span class="ic">💾</span>备份</div>
-  <div class="tab" data-tab="plugins"><span class="ic">🧩</span>插件</div>
-</div>
+<div class="toast" id="toast"></div>
 
 <script>
+"use strict";
 const $ = id => document.getElementById(id);
-let method = 'git';
-function showMsg(id, text, type) {
-  const el = $(id);
-  el.textContent = text;
-  el.className = 'msg show ' + (type || 'ok');
-  setTimeout(() => el.classList.remove('show'), 6000);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmtTime = ts => {
+  if (!ts) return "";
+  const d = new Date(ts);
+  const p = n => String(n).padStart(2, "0");
+  return p(d.getHours()) + ":" + p(d.getMinutes());
+};
+const fmtAgo = ts => {
+  if (!ts) return "";
+  const diff = Date.now() - ts;
+  if (diff < 60000) return "刚刚";
+  if (diff < 3600000) return Math.floor(diff / 60000) + " 分钟前";
+  if (diff < 86400000) return Math.floor(diff / 3600000) + " 小时前";
+  return new Date(ts).toLocaleDateString("zh-CN", { month: "numeric", day: "numeric" });
+};
+let toastTimer = null;
+function toast(text) {
+  const t = $("toast");
+  t.textContent = text;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2500);
 }
 async function api(path, body) {
-  const r = await fetch('/api/' + path, {
-    method: body ? 'POST' : 'GET',
-    headers: body ? { 'Content-Type': 'application/json' } : {},
-    body: body ? JSON.stringify(body) : undefined,
+  const r = await fetch("/api/" + path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body || {}),
   });
-  return r.json();
+  const j = await r.json().catch(() => ({}));
+  if (!j || j.ok === false) throw new Error((j && j.msg) || "请求失败");
+  return j;
 }
-function goTab(name) {
-  document.querySelectorAll('.tabbar .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  $('page-' + name).classList.add('active');
-  if (name === 'backup') loadBackup();
-  if (name === 'plugins') searchPlugins();
-}
-document.querySelectorAll('.tabbar .tab').forEach(t => t.addEventListener('click', () => goTab(t.dataset.tab)));
-function openMain() { window.open('/proxy?direct=1', '_blank'); }
 
-// 同步方式切换
-document.querySelectorAll('#sync-seg .s').forEach(s => s.addEventListener('click', () => {
-  document.querySelectorAll('#sync-seg .s').forEach(x => x.classList.remove('active'));
-  s.classList.add('active');
-  method = s.dataset.method;
-  const isGit = method === 'git';
-  $('f-git').classList.toggle('hidden', !isGit);
-  $('f-dav-url').classList.toggle('hidden', isGit);
-  $('f-dav-user').classList.toggle('hidden', isGit);
-  $('f-dav-pass').classList.toggle('hidden', isGit);
-}));
-
-// 状态栏
-async function refreshStatus() {
+/* ========== 余额 ========== */
+let balanceCache = 0;
+async function loadBalance() {
   try {
-    const s = await api('status');
-    const bar = $('statusbar');
-    bar.className = 'statusbar ' + (s.online ? 'online' : 'offline');
-    $('svc').textContent = s.online ? 'DSH 在线' : 'DSH 离线';
-    $('meta').textContent = (s.workspace ? s.workspace.slice(-20) + ' · ' : '') + s.sessions + ' 会话';
-    // 首页统计
-    $('home-stats').innerHTML = [
-      ['服务', s.online ? '在线' : '离线', s.online ? 'var(--ok)' : 'var(--bad)'],
-      ['会话数', s.sessions, ''],
-      ['插件', s.plugins || '—', ''],
-      ['余额', s.balance || '—', ''],
-    ].map(x => `<div class="stat"><div class="k">${x[0]}</div><div class="v" style="color:${x[2]||'var(--text)'}">${x[1]}</div></div>`).join('');
-    // 同步状态
-    const sync = s.sync || {};
-    const content = sync.content || {};
-    $('sync-status').innerHTML = `
-      <div class="row"><span class="k">方式</span><span class="v">${sync.method ? sync.method.toUpperCase() : '未配置'}</span></div>
-      <div class="row"><span class="k">自动</span><span class="v">${sync.auto ? sync.intervalMin + ' 分钟' : '关闭'}</span></div>
-      <div class="row"><span class="k">上次同步</span><span class="v">${sync.lastSync ? new Date(sync.lastSync).toLocaleString('zh-CN',{hour12:false}) : '—'}</span></div>
-      <div class="row"><span class="k">状态</span><span class="v">${sync.lastStatus || '—'}</span></div>`;
-  } catch (e) {}
-}
-refreshStatus();
-setInterval(refreshStatus, 15000);
-
-// 同步
-async function loadSyncCfg() {
-  const c = await api('sync/get-config');
-  $('git-remote').value = (c.git && c.git.remote) || '';
-  $('dav-url').value = (c.webdav && c.webdav.url) || '';
-  $('dav-user').value = (c.webdav && c.webdav.user) || '';
-  $('dav-pass').value = (c.webdav && c.webdav.pass) || '';
-  $('c-auto').checked = !!c.auto;
-  $('c-interval').value = c.intervalMin || 30;
-}
-async function saveSync() {
-  const cfg = { method, auto: $('c-auto').checked, intervalMin: Number($('c-interval').value) || 30 };
-  if (method === 'git') cfg.git = { remote: $('git-remote').value.trim() };
-  else cfg.webdav = { url: $('dav-url').value.trim(), user: $('dav-user').value, pass: $('dav-pass').value };
-  const r = await api('sync/save-config', cfg);
-  showMsg('sync-msg', r.ok !== false ? '✅ 已保存' : '❌ ' + r.msg, r.ok !== false ? 'ok' : 'bad');
-}
-async function testSync() {
-  const p = method === 'git' ? { method: 'git', remote: $('git-remote').value.trim() }
-    : { method: 'webdav', webdav: { url: $('dav-url').value.trim(), user: $('dav-user').value, pass: $('dav-pass').value } };
-  showMsg('sync-msg', '⏳ 测试中…', 'warn');
-  const r = await api('sync/test', p);
-  showMsg('sync-msg', (r.ok ? '✅ ' : '❌ ') + r.msg, r.ok ? 'ok' : 'bad');
-}
-async function syncNow() {
-  showMsg('sync-msg', '⏳ 同步中…', 'warn');
-  const r = await api('sync/now');
-  showMsg('sync-msg', (r.ok ? '✅ ' : '❌ ') + r.msg, r.ok ? 'ok' : 'bad');
-  refreshStatus();
-}
-async function restoreSync() {
-  if (!confirm('从云端恢复将覆盖本地数据，确定？')) return;
-  showMsg('sync-msg', '⏳ 恢复中…', 'warn');
-  const r = await api('sync/restore');
-  showMsg('sync-msg', (r.ok ? '✅ ' : '❌ ') + r.msg, r.ok ? 'ok' : 'bad');
-}
-loadSyncCfg();
-
-// 备份
-async function backupCreate() {
-  showMsg('backup-msg', '⏳ 创建中…', 'warn');
-  const r = await api('backup/create');
-  showMsg('backup-msg', (r.ok ? '✅ ' : '❌ ') + r.msg, r.ok ? 'ok' : 'bad');
-  loadBackup();
-}
-async function loadBackup() {
-  const r = await api('backup/list');
-  if (!r.ok) { $('backup-list').innerHTML = '<div class="empty">' + r.msg + '</div>'; return; }
-  if (!r.items.length) { $('backup-list').innerHTML = '<div class="empty">暂无备份</div>'; return; }
-  $('backup-list').innerHTML = r.items.map(b => `
-    <div class="item">
-      <div><div class="t">${b.name}</div><div class="d">${b.date} · ${b.size ? (b.size/1024/1024).toFixed(1)+' MB' : ''}</div></div>
-      <span class="link" onclick="backupRestore('${b.name}')">恢复</span>
-    </div>`).join('');
-}
-async function backupRestore(name) {
-  if (!confirm('从备份 ' + name + ' 恢复？')) return;
-  showMsg('backup-msg', '⏳ 恢复中…', 'warn');
-  const r = await api('backup/restore', { name });
-  showMsg('backup-msg', (r.ok ? '✅ ' : '❌ ') + r.msg, r.ok ? 'ok' : 'bad');
+    const r = await api("mob/balance", {});
+    const b = r.balance;
+    balanceCache = (typeof b === "number" && isFinite(b)) ? b : 0;
+    $("balance-chip").innerHTML = '<span class="dot"></span>余额 ¥' + balanceCache.toFixed(2);
+  } catch (e) {
+    $("balance-chip").textContent = "余额 —";
+  }
 }
 
-// 插件
-let plugins = [];
-async function searchPlugins() {
-  const q = $('plugin-q').value.trim() || 'topic:dsh-plugin';
-  showMsg('plugin-msg', '⏳ 搜索中…', 'warn');
-  const r = await api('plugins/search', { q });
-  if (!r.ok) { showMsg('plugin-msg', '❌ ' + r.msg, 'bad'); return; }
-  plugins = r.items;
-  showMsg('plugin-msg', `✅ ${r.total} 个结果`, 'ok');
-  $('plugin-list').innerHTML = plugins.map(p => `
-    <div class="item">
-      <div>
-        <div class="t">${p.fullName} <span class="badge">⭐${p.stars}</span></div>
-        <div class="d">${p.desc || ''}</div>
+/* ========== 会话列表 ========== */
+let sessions = [];
+async function loadSessions() {
+  const box = $("session-list");
+  box.innerHTML = '<div class="loading">加载中…</div>';
+  try {
+    const r = await api("mob/sessions", {});
+    sessions = r.items || [];
+  } catch (e) {
+    box.innerHTML = '<div class="empty">加载失败：' + esc(e.message) + '</div>';
+    return;
+  }
+  if (!sessions.length) {
+    box.innerHTML = '<div class="empty">暂无会话<br><br><a href="/m" style="color:var(--accent)">刷新</a></div>';
+    return;
+  }
+  box.innerHTML = sessions.map(s => `
+    <div class="session" data-id="${esc(s.id)}">
+      <div class="avatar">${esc((s.title || "?")[0])}</div>
+      <div class="body">
+        <div class="name">${esc(s.title || s.id.slice(0, 18))}</div>
+        <div class="meta">${esc(s.cwd || "—")} · ${fmtAgo(s.updatedAt)}</div>
       </div>
-      <span class="link" onclick="installPlugin('${p.fullName}')">安装</span>
-    </div>`).join('') || '<div class="empty">无结果</div>';
+      ${s.running ? '<span class="live" title="进行中"></span>' : ""}
+      <span class="arrow">›</span>
+    </div>`).join("");
+  box.querySelectorAll(".session").forEach(el => el.addEventListener("click", () => openChat(el.dataset.id)));
 }
-async function installPlugin(fullName) {
-  if (!confirm('安装 ' + fullName + '？')) return;
-  showMsg('plugin-msg', '⏳ 安装中…', 'warn');
-  const r = await api('plugins/install', { repo: fullName, pkg: '' });
-  showMsg('plugin-msg', (r.ok ? '✅ ' : '❌ ') + r.msg, r.ok ? 'ok' : 'bad');
+
+/* ========== 聊天 ========== */
+let current = null;      // { id, title }
+let pollTimer = null;
+let lastText = "";       // 轮询去重
+let pollCount = 0;
+
+function showView(name) {
+  $("view-sessions").style.display = name === "sessions" ? "flex" : "none";
+  $("view-chat").style.display = name === "chat" ? "flex" : "none";
 }
+
+function openChat(id) {
+  const s = sessions.find(x => x.id === id);
+  current = { id, title: (s && s.title) || "会话" };
+  $("chat-title").textContent = current.title;
+  $("chat-status").textContent = s && s.running ? "进行中" : "";
+  $("chat-status").className = "c-status" + ((s && s.running) ? " running" : "");
+  $("msg-list").innerHTML = "";
+  showView("chat");
+  lastText = "";
+  pollCount = 0;
+  loadHistory();
+  startPolling();
+}
+
+function renderMessages(msgs) {
+  const box = $("msg-list");
+  const frag = document.createDocumentFragment();
+  for (const m of msgs) {
+    if (m.role === "user") {
+      const div = document.createElement("div");
+      div.className = "m user";
+      div.innerHTML = '<div class="bubble">' + esc(m.text) + '</div><div class="time">' + fmtTime(m.ts) + '</div>';
+      frag.appendChild(div);
+    } else if (m.role === "assistant") {
+      const div = document.createElement("div");
+      div.className = "m ai";
+      if (m.text) {
+        div.innerHTML = '<div class="bubble">' + esc(m.text) + '</div><div class="time">' + fmtTime(m.ts) + '</div>';
+      } else {
+        div.innerHTML = '<div class="tool-note">⚙ 工具执行</div>';
+      }
+      frag.appendChild(div);
+    }
+  }
+  box.appendChild(frag);
+  box.scrollTop = box.scrollHeight;
+}
+
+async function loadHistory() {
+  if (!current) return;
+  try {
+    const r = await api("mob/history", { id: current.id });
+    if (r.messages && r.messages.length) {
+      const key = r.messages[r.messages.length - 1].text || "";
+      if (key !== lastText) {
+        $("msg-list").innerHTML = "";
+        renderMessages(r.messages);
+        lastText = key;
+      }
+    }
+    // 进行中状态
+    const running = !!r.running;
+    $("chat-status").textContent = running ? "正在回复…" : "";
+    $("chat-status").className = "c-status" + (running ? " running" : "");
+    if (running) showTyping();
+    else hideTyping();
+    return running;
+  } catch (e) {
+    return false;
+  }
+}
+
+function showTyping() {
+  if ($("typing-ind")) return;
+  const d = document.createElement("div");
+  d.className = "m ai";
+  d.id = "typing-ind";
+  d.innerHTML = '<div class="typing"><i></i><i></i><i></i></div>';
+  $("msg-list").appendChild(d);
+  $("msg-list").scrollTop = $("msg-list").scrollHeight;
+}
+function hideTyping() {
+  const t = $("typing-ind");
+  if (t) t.remove();
+}
+
+function startPolling() {
+  stopPolling();
+  pollTimer = setInterval(async () => {
+    if (!current) return;
+    pollCount++;
+    const running = await loadHistory();
+    if (!running && pollCount > 2) stopPolling();
+    if (pollCount > 150) stopPolling();
+  }, 2000);
+}
+function stopPolling() {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+}
+
+async function send() {
+  const input = $("input");
+  const text = input.value.trim();
+  if (!text || !current) return;
+  input.value = "";
+  input.style.height = "auto";
+  $("btn-send").disabled = true;
+  try {
+    await api("mob/send", { id: current.id, text });
+    renderMessages([{ role: "user", text, ts: Date.now() }]);
+    lastText = "";
+    pollCount = 0;
+    startPolling();
+    setTimeout(() => loadHistory(), 500);
+  } catch (e) {
+    toast("发送失败：" + e.message);
+    input.value = text;
+  } finally {
+    $("btn-send").disabled = false;
+  }
+}
+
+/* ========== 事件 ========== */
+$("btn-back").addEventListener("click", () => { stopPolling(); current = null; showView("sessions"); loadSessions(); });
+$("btn-send").addEventListener("click", send);
+const ta = $("input");
+ta.addEventListener("input", () => { ta.style.height = "auto"; ta.style.height = Math.min(ta.scrollHeight, 120) + "px"; });
+ta.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } });
+
+/* ========== 启动 ========== */
+loadBalance();
+setInterval(loadBalance, 30000);
+loadSessions();
 </script>
 </body>
 </html>

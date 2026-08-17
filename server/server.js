@@ -15,6 +15,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { createDecipheriv } from 'node:crypto';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DSH_HOME = process.env.DSH_HOME || path.join(os.homedir(), '.dsh');
@@ -24,6 +25,58 @@ const WEB_URL = `http://127.0.0.1:${WEB_PORT}`;
 const WORKSPACE_JSON = path.join(DSH_HOME, 'storages', 'workspace.json');
 const LIXIN_DIR = path.join(DSH_HOME, 'profiles', 'web', 'node_modules', '@linxin666');
 const WEB_DIR = path.join(__dirname, '..', 'web');
+
+// ---- 凭据读取：透明解密（格式与 dsh-credentials-local 补丁一致）----
+const CRED_KEY = path.join(DSH_HOME, '.credentials-key');
+function readStoredKey() {
+  const cred = path.join(DSH_HOME, '.credentials.yaml');
+  if (!fs.existsSync(cred)) return null;
+  const m = String(fs.readFileSync(cred, 'utf8')).match(/^DEEPSEEK_API_KEY:\s*(\S+)/m);
+  if (!m) return null;
+  const val = m[1];
+  if (!val.startsWith('enc:v1:')) return val;
+  try {
+    if (!fs.existsSync(CRED_KEY)) return null;
+    const raw = Buffer.from(val.slice(7), 'base64');
+    const decipher = createDecipheriv('aes-256-gcm', fs.readFileSync(CRED_KEY), raw.subarray(0, 12));
+    decipher.setAuthTag(raw.subarray(12, 28));
+    return Buffer.concat([decipher.update(raw.subarray(28)), decipher.final()]).toString('utf8');
+  } catch (e) { return null; }
+}
+
+// ---- 移动端对话桥：服务端代理 dsh 主服务 RPC（同源，避免跨域/直连）----
+async function dshRpc(method, payload) {
+  const r = await fetch(WEB_URL + '/api/' + method, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'client-request', rpcId: 'mgmt-' + Date.now(), method, payload }),
+    signal: AbortSignal.timeout(30000),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!j || !j.result) throw new Error('dsh 主服务无响应');
+  if (!j.result.ok) throw new Error((j.result.error && (j.result.error.message || j.result.error.code)) || 'RPC 失败: ' + method);
+  return j.result.value;
+}
+function mobTextOf(entry) {
+  const data = entry.data || {};
+  if (typeof data.text === 'string' && data.text) return data.text;
+  const parts = data.content || (data.message && data.message.content) || [];
+  const out = [];
+  for (const p of parts) if (p && p.type === 'text' && typeof p.text === 'string') out.push(p.text);
+  return out.join('\n').slice(0, 4000);
+}
+function mobHistoryToMessages(events) {
+  const msgs = [];
+  for (const entry of events || []) {
+    const e = entry.event || entry;
+    if (e.type === 'user/message') {
+      msgs.push({ role: 'user', text: mobTextOf(e) || '[消息]', ts: e.time });
+    } else if (e.type === 'assistant/message') {
+      msgs.push({ role: 'assistant', text: mobTextOf(e), ts: e.time });
+    }
+  }
+  return msgs;
+}
 
 // ==================== 配置持久化 ====================
 const CONFIG_FILE = path.join(DSH_HOME, 'client-config.json');
@@ -461,10 +514,10 @@ async function getBalance() {
   try {
     const cred = path.join(DSH_HOME, '.credentials.yaml');
     if (!fs.existsSync(cred)) { balance = null; return balance; }
-    const key = String(fs.readFileSync(cred, 'utf8')).match(/sk-[a-zA-Z0-9]+/);
+  const key = readStoredKey();
     if (!key) { balance = null; return balance; }
     const res = await fetch('https://api.deepseek.com/user/balance', {
-      headers: { Authorization: 'Bearer ' + key[0] },
+      headers: { Authorization: 'Bearer ' + key },
       signal: AbortSignal.timeout(10000),
     });
     const j = await res.json();
@@ -596,12 +649,28 @@ function execCmdLive(cmd, args, timeoutMs, opts = {}) {
 }
 // 重启 dsh 主服务
 async function restartDSH() {
+  let extra = [];
   try {
-    const ps = spawn('pkill', ['-f', 'dsh.*--profile web'], { stdio: 'ignore' });
-    await new Promise((r) => ps.on('exit', r));
+    for (const dir of fs.readdirSync('/proc')) {
+      if (!/^\d+$/.test(dir)) continue;
+      let cl = '';
+      try { cl = fs.readFileSync('/proc/' + dir + '/cmdline', 'utf8'); } catch (e) { continue; }
+      if (cl.includes('dsh') && cl.includes('--profile') && cl.includes('web')) {
+        const parts = cl.split('\0').filter(Boolean);
+        const wi = parts.indexOf('web');
+        if (wi > 0) {
+          for (let i2 = wi + 1; i2 < parts.length; i2++) {
+            if (parts[i2] === '--port') { i2++; continue; }
+            extra.push(parts[i2]);
+          }
+        }
+        try { process.kill(Number(dir), 'SIGTERM'); } catch (e) {}
+        break;
+      }
+    }
   } catch (e) {}
   const bin = process.env.DSH_BIN || 'dsh';
-  const c = spawn(bin, ['--profile', 'web', '--port', String(WEB_PORT)], { detached: true, stdio: 'ignore' });
+  const c = spawn(bin, ['--profile', 'web', '--port', String(WEB_PORT)].concat(extra), { detached: true, stdio: 'ignore' });
   c.unref();
   await new Promise((r) => setTimeout(r, 5000));
   return { ok: true, msg: '已重启 dsh 服务' };
@@ -611,11 +680,11 @@ async function restartDSH() {
 async function translateText(text) {
   try {
     const cred = path.join(DSH_HOME, '.credentials.yaml');
-    const key = fs.existsSync(cred) ? String(fs.readFileSync(cred, 'utf8')).match(/sk-[a-zA-Z0-9]+/) : null;
+  const key = readStoredKey();
     if (!key) return '未配置 API Key（请在 dsh 设置中配置）';
     const res = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key[0] },
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
       body: JSON.stringify({
         model: 'deepseek-chat',
         messages: [
@@ -676,11 +745,11 @@ async function rulesImport(sel) {
     if (!f || !fs.existsSync(f)) return { ok: false, msg: '规则文件不存在' };
     const content = fs.readFileSync(f, 'utf8').slice(0, 12000);
     const cred = path.join(DSH_HOME, '.credentials.yaml');
-    const key = fs.existsSync(cred) ? String(fs.readFileSync(cred, 'utf8')).match(/sk-[a-zA-Z0-9]+/) : null;
+  const key = readStoredKey();
     if (!key) return { ok: false, msg: '未配置 API Key' };
     const res = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key[0] },
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
       body: JSON.stringify({
         model: 'deepseek-chat',
         messages: [
@@ -826,6 +895,44 @@ const server = http.createServer(async (req, res) => {
       // 归档
       case 'archive/list': return sendJSON(res, 200, await archiveList());
       case 'archive/unarchive': return sendJSON(res, 200, await archiveUnarchive(body.id));
+      // 移动端：实时余额
+      case 'mob/balance': return sendJSON(res, 200, { ok: true, balance: await getBalance() });
+      // 移动端：会话列表（只显示主工作区中有标题的有效会话）
+      case 'mob/sessions': {
+        // 从 workspace.json 取主工作区的 sessionIds
+        let wsIds = new Set();
+        try {
+          const ws = JSON.parse(fs.readFileSync(WORKSPACE_JSON, 'utf8'));
+          const first = Object.values((ws.tables && ws.tables.workspaces) || {})[0];
+          if (first && first.sessionIds) wsIds = new Set(first.sessionIds);
+        } catch (e) {}
+        const v = await dshRpc('session.list', {});
+        const items = (v.items || [])
+          // 只在主工作区 且 有真实标题（过滤临时/无标题会话）
+          .filter(x => wsIds.has(x.sessionId) && x.projections && x.projections.values && x.projections.values.title)
+          .map(x => ({
+            id: x.sessionId,
+            title: x.projections.values.title,
+            updatedAt: x.updatedAt, cwd: x.cwd, running: x.running,
+          }))
+          .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+        return sendJSON(res, 200, { ok: true, items });
+      }
+      // 移动端：历史消息
+      case 'mob/history': {
+        const v = await dshRpc('session.history', { sessionId: body.id, maxMessages: 60 });
+        let running = false;
+        try { const l = await dshRpc('session.list', {}); const f = (l.items || []).find(x => x.sessionId === body.id); running = !!(f && f.running); } catch (e) {}
+        return sendJSON(res, 200, { ok: true, messages: mobHistoryToMessages(v.events), hasMore: v.hasMore, running });
+      }
+      // 移动端：发送消息
+      case 'mob/send': {
+        const text = String(body.text || '').slice(0, 4000);
+        if (!text) return sendJSON(res, 400, { ok: false, msg: '消息为空' });
+        const pv = await dshRpc('session.prompt', { sessionId: body.id, content: [{ type: 'text', text }], clientTimeZone: 'Asia/Shanghai' });
+        return sendJSON(res, 200, { ok: true, ...(pv || {}) });
+      }
+
       // 代理：访问 dsh 主服务（避免跨域）
       case 'proxy': {
         const target = WEB_URL + (body.path || '/');
@@ -842,7 +949,7 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(MGMT_PORT, '0.0.0.0', () => {
+server.listen(MGMT_PORT, '127.0.0.1', () => {
   log('========================================');
   log(' DSH Docker 移植版 管理服务已启动');
   log(` 管理页:      http://0.0.0.0:${MGMT_PORT}/`);
