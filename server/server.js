@@ -929,7 +929,7 @@ const server = http.createServer(async (req, res) => {
       case 'mob/send': {
         const text = String(body.text || '').slice(0, 4000);
         if (!text) return sendJSON(res, 400, { ok: false, msg: '消息为空' });
-        const pv = await dshRpc('session.prompt', { sessionId: body.id, content: [{ type: 'text', text }], clientTimeZone: 'Asia/Shanghai' });
+        const pv = await dshRpc('session.prompt', { sessionId: body.id, mode: 'queue', content: [{ type: 'text', text }], clientTimeZone: 'Asia/Shanghai' });
         return sendJSON(res, 200, { ok: true, ...(pv || {}) });
       }
 
